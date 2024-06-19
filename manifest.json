@@ -3,10 +3,10 @@
   "version": "0.1",
   "manifest_version": 3,
   "icons": {
-    "128": "Y.png"
+    "128": "loop-icon.png"
   },
   "action": {
-    "default_popup": "./views/popup.html"
+    "default_path": "./views/popup.html"
   },
   "side_panel": {
     "default_path": "./views/popup.html"
@@ -22,5 +22,11 @@
   "background": {
     "service_worker": "service-worker.js"
   },
-  "permissions": ["sidePanel"]
+  "permissions": ["sidePanel", "activeTab", "storage", "scripting"],
+  "web_accessible_resources": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "resources": ["loop-stacked.png"]
+    }
+  ]
 }

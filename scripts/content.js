@@ -18,6 +18,34 @@ function shouldFetchData() {
   return diffInDays > 7; //only refresh every 7 days
 }
 
+async function getBase64ImageFromUrl(imageUrl) {
+  var res = await fetch(imageUrl);
+  var blob = await res.blob();
+
+  return new Promise((resolve, reject) => {
+    var reader = new FileReader();
+    reader.addEventListener(
+      "load",
+      function () {
+        resolve(reader.result);
+      },
+      false
+    );
+
+    reader.onerror = () => {
+      return reject(this);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+function getImageUrl(pictureObj) {
+  return getBase64ImageFromUrl(
+    pictureObj?.rootUrl +
+      pictureObj?.artifacts[3]?.fileIdentifyingUrlPathSegment
+  );
+}
+
 ///////////// * GLOBAL VARIABLES ENDS HERES * /////////////////
 async function getCsrfToken() {
   const htmlResp = await fetch(
@@ -81,7 +109,13 @@ async function getConnections(csrfToken) {
         item.$type === "com.linkedin.voyager.dash.identity.profile.Profile"
     );
     console.log(profiles);
-    connections.push(...profiles);
+    connections.push(
+      ...profiles.map((conn) => ({
+        lastName: conn.lastName,
+        firstName: conn.firstName,
+        publicIdentifier: conn.publicIdentifier,
+      }))
+    );
     if (profiles.length > 0) {
       hasConnections = true;
       start += take;
@@ -89,27 +123,6 @@ async function getConnections(csrfToken) {
   } while (hasConnections);
   return connections;
 }
-async function getBase64ImageFromUrl(imageUrl) {
-  var res = await fetch(imageUrl);
-  var blob = await res.blob();
-
-  return new Promise((resolve, reject) => {
-    var reader = new FileReader();
-    reader.addEventListener(
-      "load",
-      function () {
-        resolve(reader.result);
-      },
-      false
-    );
-
-    reader.onerror = () => {
-      return reject(this);
-    };
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function getProfile(csrfToken) {
   const profileInfo = await fetch(`https://www.linkedin.com/voyager/api/me`, {
     headers: {
@@ -139,33 +152,30 @@ async function getProfile(csrfToken) {
     credentials: "include",
   }).then((res) => res.json());
 
-  function getImageUrl(pictureObj) {
-    return getBase64ImageFromUrl(
-      pictureObj?.rootUrl +
-        pictureObj?.artifacts[3]?.fileIdentifyingUrlPathSegment
-    );
-  }
-
   return {
     firstName: profileInfo.included[0]?.firstName,
     lastName: profileInfo.included[0]?.lastName,
     occupation: profileInfo.included[0]?.occupation,
     publicIdentifier: profileInfo.included[0]?.publicIdentifier,
-    picture: getImageUrl(profileInfo.included[0]?.picture),
+    picture: await getImageUrl(profileInfo.included[0]?.picture),
   };
 }
 // Create the button element
 const button = document.createElement("button");
 button.id = "openBtn";
-button.innerText = "Loop";
-button.style.position = "fixed";
-button.style.right = "20px";
-button.style.top = "20px";
+
+const iconImg = document.createElement("img");
+iconImg.src = chrome.runtime.getURL("loop-stacked.png");
+iconImg.id = "openBtnIcon";
+button.appendChild(iconImg);
 
 // Add a click event listener to the button
 button.addEventListener("click", () => {
   // Send a message to the popup.js script
-  chrome.runtime.sendMessage({ action: "toggleLoopPanel" });
+  chrome.runtime.sendMessage({
+    action: "toggleLoopPanel",
+    profileData: localStorage.getItem("loop:data"),
+  });
   console.log("sending message to popup.js");
 });
 
@@ -181,6 +191,13 @@ document.body.appendChild(button);
     //const profile = parseProfile();
     console.log(basicProfile);
     localStorage.setItem("loop:lastDataRefresh", Date.now());
+    localStorage.setItem(
+      "loop:data",
+      JSON.stringify({
+        basicProfile,
+        connections,
+      })
+    );
   } else {
     console.log("Data is up to date");
   }

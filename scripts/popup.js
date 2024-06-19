@@ -1,17 +1,23 @@
-let panelVisible = false;
-
-// Listen for messages from content.js
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "toggleLoopPanel") {
-    console.log("Received message from content.js");
-    togglePanel();
-  }
+// to find the windowId of the active tab
+let windowId;
+chrome.tabs.onActivated.addListener(function (activeInfo) {
+  windowId = activeInfo.windowId;
 });
 
-function togglePanel() {
-  panelVisible = !panelVisible;
-  // Show or hide the side panel based on the panelVisible variable
-  // You can use JavaScript to manipulate the DOM and show/hide the panel
-
-  console.log("Panel visibility toggled");
+async function loadProfileInfo() {
+  const data = await chrome.storage.local.get(["loop:data"]);
+  console.log(data["loop:data"]);
+  const { basicProfile, connections } = JSON.parse(data["loop:data"]);
+  document.getElementById("profilePic").src = basicProfile.picture;
+  document.getElementById("profileFirstName").textContent =
+    basicProfile.firstName;
+  document.getElementById("numConnections").textContent = connections.length;
 }
+
+// Self-invocation async function
+(async () => {
+  loadProfileInfo();
+})().catch((err) => {
+  console.error(err);
+  throw err;
+});
