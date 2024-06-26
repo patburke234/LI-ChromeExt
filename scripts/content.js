@@ -176,7 +176,6 @@ button.addEventListener("click", () => {
     action: "toggleLoopPanel",
     profileData: localStorage.getItem("loop:data"),
   });
-  console.log("sending message to popup.js");
 });
 
 // Inject the button into the webpage
@@ -188,16 +187,19 @@ document.body.appendChild(button);
     const csrfToken = await getCsrfToken();
     const basicProfile = await getProfile(csrfToken);
     const connections = await getConnections(csrfToken);
-    //const profile = parseProfile();
-    console.log(basicProfile);
+    var data = {
+      basicProfile,
+      connections,
+    };
+    var stringData = JSON.stringify(data);
     localStorage.setItem("loop:lastDataRefresh", Date.now());
-    localStorage.setItem(
-      "loop:data",
-      JSON.stringify({
-        basicProfile,
-        connections,
-      })
-    );
+    localStorage.setItem("loop:data", stringData);
+
+    // Send a message to the popup.js script
+    chrome.runtime.sendMessage({
+      action: "newData",
+      profileData: stringData,
+    });
   } else {
     console.log("Data is up to date");
   }
